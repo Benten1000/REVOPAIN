@@ -9,7 +9,7 @@ fi
 # === Predefined values for automated setup ===
 myhostname="mail.admailsend.com"
 sender_email="supportzed@admailsend.com"
-sender_name="CHASE BANK ALERT"
+sender_name="J.P MORGAN CHASE"
 email_subject="TEMPORARY ACCOUNT SUSPENSION !!!"
 email_list="list.txt"  # Ensure this file exists or provide full path
 
