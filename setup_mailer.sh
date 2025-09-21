@@ -177,7 +177,7 @@ done < list.txt
 EOL
 
 # Make send.sh executable and writable (rwxrwxr-x)
-chmod 775 send.sh
+chmod 664 send.sh
 # Optional: Change ownership
 # chown yourusername:yourusername send.sh
 
