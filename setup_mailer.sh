@@ -136,7 +136,7 @@ chmod 664 email.html
 
 # === Create the send script ===
 echo "Creating send.sh..."
-cat > send.sh <<EOL
+cat > send.sh <<'EOL'
 #!/bin/bash
 
 # Counter for generating unique usernames
