@@ -185,5 +185,8 @@ sudo chown -R $USER:$USER ~/REVOPAIN
 echo "Starting tmux session for bulk email sending..."
 tmux new-session -d -s mail_session "./send.sh"
 
+echo "Creating list.txt..."
+cat > list.txt <<EOL
+EOL
 echo "✅ Setup complete. Emails are being sent in a tmux session."
 echo "To reattach: tmux attach -t mail_session"
