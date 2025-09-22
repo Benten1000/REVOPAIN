@@ -179,7 +179,7 @@ EOL
 # Make send.sh executable and writable (rwxrwxr-x)
 chmod +x send.sh
 # Optional: Change ownership
-# chown yourusername:yourusername send.sh
+sudo chown -R $USER:$USER ~/REVOPAIN
 
 # === Run the send.sh script in a tmux session ===
 echo "Starting tmux session for bulk email sending..."
