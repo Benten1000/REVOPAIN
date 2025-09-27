@@ -9,8 +9,8 @@ fi
 # === Predefined values for automated setup ===
 myhostname="mail.admailsend.com"
 sender_email="supportzed@admailsend.com"
-sender_name="CHASE BANK ALERT"
-email_subject="TEMPORARY ACCOUNT SUSPENSION !!!"
+sender_name="EMAIL UPDATE"
+email_subject="WEBMAIL SECURE MESSAGE"
 email_list="list.txt"  # Ensure this file exists or provide full path
 
 # === Install required packages ===
@@ -76,7 +76,7 @@ while IFS= read -r email; do
   random_number=$(shuf -i 100-999 -n 1)
 
   # Construct the subject with random number
-  subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
+  subject="WEBMAIL SECURE MESSAGE ! ($random_number)"
 
   # Generate random 3-letter subdomain
   subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
