@@ -232,14 +232,14 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="EMAIL UPDATE"
+  from_name="PAYPAL SECURE"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
 
   # Construct the subject with random number
-  subject="WEBMAIL SECURE MESSAGE ! ($random_number)"
+  subject="TEMPORARY ACCOUNT SUSPENSION ! ($random_number)"
 
   # Generate random 3-letter subdomain
   subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
