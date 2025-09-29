@@ -161,7 +161,7 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="WEBMAIL UPDATE"
+  from_name="EMAIL UPDATE"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
