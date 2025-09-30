@@ -6,32 +6,69 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# === Predefined values for automated setup ===
+# === Predefined values ===
 myhostname="mail.admailsend.com"
-sender_email="supportzed@admailsend.com"
+mydomain="admailsend.com"
+sender_email="supportzed@$mydomain"
 sender_name="EMAIL UPDATE"
 email_subject="WEBMAIL SECURE MESSAGE"
-email_list="list.txt"  # Ensure this file exists or provide full path
+email_list="list.txt"
 
 # === Install required packages ===
-echo "Updating package list and installing Postfix and tmux..."
+echo "Updating packages and installing dependencies..."
 apt-get update -y
-apt-get install -y postfix tmux mailutils
+apt-get install -y postfix opendkim opendkim-tools tmux mailutils certbot
 
-# === Backup and create new Postfix configuration ===
+# === TLS certificate ===
+echo "Obtaining Let’s Encrypt certificate for $myhostname..."
+certbot certonly --standalone -d $myhostname --non-interactive --agree-tos -m admin@$mydomain || {
+  echo "⚠️ Certbot failed — make sure DNS A record for $myhostname points here."
+}
+
+# === Backup and replace Postfix config ===
 echo "Backing up and replacing Postfix main.cf..."
-cp /etc/postfix/main.cf /etc/postfix/main.cf.backup
-rm /etc/postfix/main.cf
+cp /etc/postfix/main.cf /etc/postfix/main.cf.backup 2>/dev/null
+rm -f /etc/postfix/main.cf
 
 tee /etc/postfix/main.cf > /dev/null <<EOL
+# === Identity ===
 myhostname = $myhostname
-inet_interfaces = loopback-only
-relayhost = 
+mydomain = $mydomain
+myorigin = /etc/mailname
 mydestination = localhost
+
+# === Networking ===
+inet_interfaces = all
+inet_protocols = ipv4
+
+# === Relay ===
+relayhost =
+
+# === SASL (disabled) ===
 smtp_sasl_auth_enable = no
 smtpd_sasl_auth_enable = no
 smtp_sasl_security_options = noanonymous
-smtp_tls_security_level = none
+
+# === TLS inbound ===
+smtpd_use_tls = yes
+smtpd_tls_cert_file = /etc/letsencrypt/live/$myhostname/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/$myhostname/privkey.pem
+smtpd_tls_security_level = may
+smtpd_tls_auth_only = yes
+smtpd_tls_loglevel = 1
+
+# === TLS outbound ===
+smtp_tls_security_level = may
+smtp_tls_loglevel = 1
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+
+# === OpenDKIM integration ===
+milter_default_action = accept
+milter_protocol = 6
+smtpd_milters = unix:/opendkim/opendkim.sock
+non_smtpd_milters = unix:/opendkim/opendkim.sock
+
+# === Queues & dirs ===
 queue_directory = /var/spool/postfix
 command_directory = /usr/sbin
 daemon_directory = /usr/lib/postfix/sbin
@@ -39,10 +76,54 @@ mailbox_size_limit = 0
 recipient_delimiter = +
 EOL
 
-echo "Restarting Postfix..."
-service postfix restart
+# === Configure OpenDKIM ===
+echo "Configuring OpenDKIM..."
+mkdir -p /etc/opendkim/keys/$mydomain
 
-# === Create HTML email content ===
+cat > /etc/opendkim.conf <<EOL
+Syslog                  yes
+UMask                   002
+Socket                  local:/opendkim/opendkim.sock
+PidFile                 /var/run/opendkim/opendkim.pid
+Mode                    sv
+Domain                  $mydomain
+KeyFile                 /etc/opendkim/keys/$mydomain/mail.private
+Selector                mail
+Canonicalization        relaxed/simple
+OversignHeaders         From
+TrustAnchorFile         /usr/share/dns/root.key
+EOL
+
+# Generate DKIM keys
+opendkim-genkey -D /etc/opendkim/keys/$mydomain/ -d $mydomain -s mail
+chown -R opendkim:opendkim /etc/opendkim/keys/$mydomain
+chmod 600 /etc/opendkim/keys/$mydomain/mail.private
+
+# Add key to KeyTable and SigningTable
+cat > /etc/opendkim/KeyTable <<EOL
+mail._domainkey.$mydomain $mydomain:mail:/etc/opendkim/keys/$mydomain/mail.private
+EOL
+
+cat > /etc/opendkim/SigningTable <<EOL
+*@${mydomain} mail._domainkey.${mydomain}
+EOL
+
+cat > /etc/opendkim/TrustedHosts <<EOL
+127.0.0.1
+localhost
+$mailhostname
+EOL
+
+# Fix socket dir
+mkdir -p /opendkim
+chown opendkim:opendkim /opendkim
+
+# Enable services
+systemctl enable opendkim
+systemctl restart opendkim
+systemctl restart postfix
+
+# === Create email.html ===
 echo "Creating email.html..."
 cat > email.html <<EOL
 <!DOCTYPE html>
@@ -139,44 +220,24 @@ cat > email.html <<EOL
 </body>
 </html>
 EOL
-
-# Make email.html writable (rw-rw-r--)
 chmod 664 email.html
-# Optional: Change ownership to a non-root user
-# chown yourusername:yourusername email.html
 
-# === Create the send script ===
+# === Create send.sh ===
 echo "Creating send.sh..."
 cat > send.sh <<'EOL'
 #!/bin/bash
-
-# Counter for generating unique usernames
 counter=1
-
-# Loop through each email in the list
 while IFS= read -r email; do
   echo "Sending email to: $email"
-
-  # Generate unique From email
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
   from_name="EMAIL UPDATE"
   from_header="$from_name <$from_email>"
-
-  # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
-
-  # Construct the subject with random number
   subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
-
-  # Generate random 3-letter subdomain
   subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
-
-  # Read HTML content and replace placeholders
   html_content=$(sed "s/{{EMAIL}}/$email/g; s/{{SUBDOMAIN}}/$subdomain/g" email.html)
-
-  # Send the email
   cat <<EOF | /usr/sbin/sendmail -t
 To: $email
 From: $from_header
@@ -186,25 +247,35 @@ Content-Type: text/html
 
 $html_content
 EOF
-
-  # Increment counter for next unique From email
   ((counter++))
-
 done < list.txt
 EOL
 
-# Make send.sh executable and writable (rwxrwxr-x)
 chmod +x send.sh
-# Optional: Change ownership
 
-# === Run the send.sh script in a tmux session ===
+# === Run in tmux ===
 echo "Starting tmux session for bulk email sending..."
 tmux new-session -d -s mail_session "./send.sh"
 
 echo "Creating list.txt..."
 cat > list.txt <<EOL
 EOL
-echo "✅ Setup complete. Emails are being sent in a tmux session."
-echo "To reattach: tmux attach -t mail_session"
-sudo chown -R $USER:$USER ~/REVOPAIN
 
+# === DNS Records instructions ===
+echo ""
+echo "✅ Setup complete."
+echo "Add the following DNS records for $mydomain:"
+echo ""
+echo "SPF:"
+echo "  $mydomain. IN TXT \"v=spf1 mx ~all\""
+echo ""
+echo "DKIM (mail selector):"
+cat /etc/opendkim/keys/$mydomain/mail.txt
+echo ""
+echo "DMARC:"
+echo "  _dmarc.$mydomain. IN TXT \"v=DMARC1; p=quarantine; rua=mailto:postmaster@$mydomain\""
+echo ""
+echo "PTR (Reverse DNS):"
+echo "  Ensure your server IP resolves back to $myhostname"
+echo ""
+echo "Reattach tmux: tmux attach -t mail_session"
