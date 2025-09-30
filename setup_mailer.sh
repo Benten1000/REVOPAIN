@@ -1,204 +1,302 @@
 #!/bin/bash
-#
-# Lightweight Postfix+OpenDKIM setup (NO TLS)
-# Designed for environments without systemd (e.g. Cloud Shell)
-#
-# Run as root (sudo) — script will install packages and configure DKIM.
-#
-
 set -euo pipefail
 
+###############################################################################
+# Automated Postfix + OpenDKIM setup + example send script
+# - Domain: admailsend.com (change below if needed)
+# - Selector: default
+# - Prints DKIM public TXT for DNS and suggests SPF/DMARC records
+#
+# USAGE: sudo ./setup_mail_with_dkim.sh
+###############################################################################
+
+# === CONFIGURATION - customize these values ===
+myhostname="mail.admailsend.com"
+domain="admailsend.com"           # domain to sign for
+selector="default"               # dkim selector
+sender_name="EMAIL"
+email_subject="WEBMAIL"
+email_list="list.txt"            # path to recipient list (script also creates)
+tmux_session="mail_session"
+# === end configuration ===
+
+# Simple root check
 if [ "$EUID" -ne 0 ]; then
   echo "Please run this script as root or with sudo."
   exit 1
 fi
 
-# ---------- Configurable values ----------
-myhostname="mail.admailsend.com"
-mydomain="admailsend.com"
-sender_name="EMAIL"
-email_list="list.txt"
-dkim_selector="mail"   # DKIM selector name (will create mail._domainkey)
-# -----------------------------------------
-
-echo "Updating package list and installing required packages..."
+echo "Updating package lists..."
 apt-get update -y
-apt-get install -y postfix opendkim opendkim-tools mailutils tmux
 
-# ---------- Backup existing Postfix config ----------
-echo "Backing up existing Postfix configuration (if present)..."
-if [ -f /etc/postfix/main.cf ]; then
-  cp /etc/postfix/main.cf /etc/postfix/main.cf.backup.$(date +%s) || true
+echo "Installing required packages: postfix, tmux, mailutils, opendkim..."
+DEBIAN_FRONTEND=noninteractive apt-get install -y postfix tmux mailutils opendkim opendkim-tools
+
+# === Backup and write Postfix main.cf ===
+echo "Backing up /etc/postfix/main.cf to /etc/postfix/main.cf.backup (if not backed up already)..."
+if [ ! -f /etc/postfix/main.cf.backup ]; then
+  cp /etc/postfix/main.cf /etc/postfix/main.cf.backup || true
 fi
 
-# ---------- Write lightweight Postfix main.cf (no TLS) ----------
-echo "Writing /etc/postfix/main.cf (lightweight, sendmail mode, NO TLS)..."
-
-tee /etc/postfix/main.cf > /dev/null <<EOL
-# Lightweight Postfix main.cf for sendmail submission (no systemd daemon assumption)
-myhostname = ${myhostname}
-mydomain = ${mydomain}
-myorigin = /etc/mailname
-mydestination = localhost
+echo "Writing a minimal /etc/postfix/main.cf (adjust policies for production)..."
+cat > /etc/postfix/main.cf <<EOF
+# Minimal Postfix configuration (generated)
+myhostname = $myhostname
+myorigin = $domain
 inet_interfaces = loopback-only
+mydestination = localhost
+relayhost =
+mailbox_size_limit = 0
+recipient_delimiter = +
 queue_directory = /var/spool/postfix
 command_directory = /usr/sbin
 daemon_directory = /usr/lib/postfix/sbin
-mailbox_size_limit = 0
-recipient_delimiter = +
 
-# Do NOT configure TLS here (explicitly left out per request)
-
-# OpenDKIM milter (socket location used below)
-smtpd_milters = unix:/var/run/opendkim/opendkim.sock
-non_smtpd_milters = unix:/var/run/opendkim/opendkim.sock
+# OpenDKIM milter settings (Postfix will talk to OpenDKIM over inet localhost:12301)
 milter_default_action = accept
-milter_protocol = 6
+milter_protocol = 2
+smtpd_milters = inet:localhost:12301
+non_smtpd_milters = inet:localhost:12301
+EOF
 
-# Minimal compatibility settings (avoid old warnings)
-compatibility_level = 3.6
-EOL
+echo "Restarting Postfix..."
+systemctl restart postfix || service postfix restart || true
 
-# Ensure /etc/mailname contains domain used for myorigin
-echo "${mydomain}" > /etc/mailname
+# === Setup OpenDKIM configuration and keys ===
+OPENDKIM_CONF="/etc/opendkim.conf"
+OPENDKIM_DIR="/etc/opendkim"
+KEYS_DIR="${OPENDKIM_DIR}/keys"
+DOMAIN_KEYS_DIR="${KEYS_DIR}/${domain}"
 
-# ---------- OpenDKIM configuration ----------
-echo "Creating OpenDKIM directories and configuration..."
-mkdir -p /etc/opendkim/keys/${mydomain}
-chown -R opendkim:opendkim /etc/opendkim || true
-chmod 750 /etc/opendkim || true
+echo "Creating OpenDKIM directories..."
+mkdir -p "$DOMAIN_KEYS_DIR"
+chown -R opendkim:opendkim "$OPENDKIM_DIR" || true
 
-cat > /etc/opendkim.conf <<EOL
-Syslog                  yes
-UMask                   002
-Socket                  local:/var/run/opendkim/opendkim.sock
-PidFile                 /var/run/opendkim/opendkim.pid
-Mode                    sv
-Domain                  ${mydomain}
-KeyFile                 /etc/opendkim/keys/${mydomain}/${dkim_selector}.private
-Selector                ${dkim_selector}
-Canonicalization        relaxed/simple
-OversignHeaders         From
-EOL
+echo "Writing /etc/opendkim.conf..."
+cat > "$OPENDKIM_CONF" <<EOF
+# OpenDKIM configuration (minimal)
+Syslog          yes
+UMask           002
+Socket          inet:12301@localhost
+PidFile         /var/run/opendkim/opendkim.pid
+Mode            sv
+Canonicalization relaxed/simple
+Selector        $selector
+KeyTable        /etc/opendkim/KeyTable
+SigningTable    /etc/opendkim/SigningTable
+ExternalIgnoreList /etc/opendkim/TrustedHosts
+InternalHosts   /etc/opendkim/TrustedHosts
+UserID          opendkim:opendkim
+EOF
 
-cat > /etc/opendkim/KeyTable <<EOL
-${dkim_selector}._domainkey.${mydomain} ${mydomain}:${dkim_selector}:/etc/opendkim/keys/${mydomain}/${dkim_selector}.private
-EOL
-
-cat > /etc/opendkim/SigningTable <<EOL
-*@${mydomain} ${dkim_selector}._domainkey.${mydomain}
-EOL
-
-cat > /etc/opendkim/TrustedHosts <<EOL
+# KeyTable, SigningTable, TrustedHosts
+cat > /etc/opendkim/TrustedHosts <<EOF
 127.0.0.1
+::1
 localhost
-${myhostname}
-EOL
+$myhostname
+EOF
 
-# ---------- Generate DKIM key ----------
-echo "Generating DKIM key (selector=${dkim_selector})..."
-cd /etc/opendkim/keys/${mydomain}
-# if key already exists, do not overwrite
-if [ -f "${dkim_selector}.private" ]; then
-  echo "DKIM key already exists, skipping generation."
+cat > /etc/opendkim/KeyTable <<EOF
+# Format: <selector>._domainkey.<domain> <domain>:<selector>:/path/to/private.key
+${selector}._domainkey.${domain} ${domain}:${selector}:${DOMAIN_KEYS_DIR}/${selector}.private
+EOF
+
+cat > /etc/opendkim/SigningTable <<EOF
+# Sign all mail from the domain using the selector above
+*@${domain} ${selector}._domainkey.${domain}
+EOF
+
+# Ensure correct ownership/perms
+chown -R opendkim:opendkim /etc/opendkim
+chmod 750 /etc/opendkim
+chmod 640 /etc/opendkim/KeyTable /etc/opendkim/SigningTable /etc/opendkim/TrustedHosts || true
+
+# Generate DKIM keypair if not already present
+if [ ! -f "${DOMAIN_KEYS_DIR}/${selector}.private" ]; then
+  echo "Generating DKIM keypair for ${domain} (selector=${selector})..."
+  mkdir -p "$DOMAIN_KEYS_DIR"
+  opendkim-genkey -b 2048 -d "$domain" -s "$selector" -D "$DOMAIN_KEYS_DIR"
+  chown opendkim:opendkim "${DOMAIN_KEYS_DIR}/${selector}.private" "${DOMAIN_KEYS_DIR}/${selector}.txt"
+  chmod 600 "${DOMAIN_KEYS_DIR}/${selector}.private"
+  echo "DKIM keypair generated at ${DOMAIN_KEYS_DIR}/${selector}.private"
 else
-  opendkim-genkey -s "${dkim_selector}" -d "${mydomain}"
-  chown opendkim:opendkim "${dkim_selector}.private" "${dkim_selector}.txt"
-  chmod 600 "${dkim_selector}.private"
+  echo "DKIM keypair already exists at ${DOMAIN_KEYS_DIR}/${selector}.private — skipping generation."
 fi
 
-# ---------- Create socket directory and ensure permissions ----------
-mkdir -p /var/run/opendkim
-chown opendkim:opendkim /var/run/opendkim || true
+# Make sure opendkim user can access keys
+chown -R opendkim:opendkim "${KEYS_DIR}"
+chmod -R 750 "${KEYS_DIR}"
+chmod 600 "${DOMAIN_KEYS_DIR}/${selector}.private"
 
-# ---------- Start OpenDKIM manually (background) ----------
-echo "Starting OpenDKIM in background (manual, no systemd)..."
-# Kill any existing opendkim running in foreground to avoid duplicates
-pkill -f "opendkim -x /etc/opendkim.conf" 2>/dev/null || true
-# Start opendkim as the 'opendkim' user; keep it in background
-sudo -u opendkim opendkim -x /etc/opendkim.conf -P /var/run/opendkim/opendkim.pid &
+# Ensure opendkim service is enabled and started
+echo "Restarting/starting OpenDKIM..."
+if systemctl list-unit-files | grep -q opendkim; then
+  systemctl restart opendkim || service opendkim restart || true
+  systemctl enable opendkim || true
+else
+  # Try to start directly if systemctl unit name differs
+  service opendkim restart || true
+fi
 
-# ---------- Reload Postfix configuration (no systemctl) ----------
-echo "Reloading Postfix configuration (postfix reload)..."
-# postconf will warn if mail system not running; reload is safe for sendmail submission
-postfix reload || true
+# Ensure Postfix can talk to OpenDKIM (restart Postfix again)
+systemctl restart postfix || service postfix restart || true
 
-# ---------- Create email content and send script ----------
-echo "Creating email.html..."
-cat > email.html <<'EOL'
-Letter
-EOL
+# === Create email template ===
+echo "Creating email.html template..."
+cat > email.html <<'HTML'
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Letter</title>
+</head>
+<body>
+  <p>Hello,</p>
+  <p>This is a test letter addressed to {{EMAIL}}. Subdomain: {{SUBDOMAIN}}</p>
+  <p>Kind regards,<br/>EMAIL</p>
+</body>
+</html>
+HTML
+
 chmod 664 email.html
 
-echo "Creating send.sh (uses sendmail -t)..."
-cat > send.sh <<'EOL'
+# === Create send.sh script that sends signed mail (OpenDKIM will sign automatically) ===
+echo "Creating send.sh..."
+cat > send.sh <<'SH'
 #!/bin/bash
-counter=1
-while IFS= read -r email; do
-  echo "Sending email to: $email"
-  from_username="supportzed$counter"
-  from_domain="admailsend.com"
-  from_email="$from_username@$from_domain"
-  from_name="EMAIL"
-  from_header="$from_name <$from_email>"
-  random_number=$(shuf -i 100-999 -n 1)
-  subject="SECURE ! ($random_number)"
-  subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
-  html_content=$(sed "s/{{EMAIL}}/$email/g; s/{{SUBDOMAIN}}/$subdomain/g" email.html)
-  cat <<EOF | /usr/sbin/sendmail -t
-To: $email
-From: $from_header
-Subject: $subject
-MIME-Version: 1.0
-Content-Type: text/html
+set -euo pipefail
 
-$html_content
+email_list_file="'"$email_list"'"
+counter=1
+
+if [ ! -f "$email_list_file" ]; then
+  echo "Recipient list file $email_list_file not found. Create it and add one email per line."
+  exit 1
+fi
+
+while IFS= read -r email || [ -n "$email" ]; do
+  # Skip empty lines and comments
+  [[ -z "$email" ]] && continue
+  [[ "$email" =~ ^# ]] && continue
+
+  echo "Sending email to: $email"
+
+  from_username="supportzed${counter}"
+  from_domain="'"$domain"'"
+  from_email="${from_username}@${from_domain}"
+  from_name="'"$sender_name"'"
+  from_header="${from_name} <${from_email}>"
+
+  random_number=$(shuf -i 100-999 -n 1)
+  subject="'"$email_subject"' - SECURE ! ($random_number)"
+
+  subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3 || echo "abc")
+  # Replace placeholders in email.html
+  html_content=$(sed "s/{{EMAIL}}/${email}/g; s/{{SUBDOMAIN}}/${subdomain}/g" email.html)
+
+  # Construct and send MIME email via sendmail (Postfix will hand to OpenDKIM milter)
+  cat <<EOF | /usr/sbin/sendmail -t -oi
+To: ${email}
+From: ${from_header}
+Subject: ${subject}
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+${html_content}
 EOF
+
+  # increment counter
   ((counter++))
-done < list.txt
-EOL
+  # Small sleep to avoid hammering the queue too fast
+  sleep 0.5
+done < "$email_list_file"
+SH
 
 chmod +x send.sh
 
-# ---------- Create empty list.txt (you'll populate it) ----------
-echo "Creating (empty) list.txt — please add recipient emails to this file."
-cat > list.txt <<EOL
-EOL
-
-# ---------- Final notes & DNS records ----------
-echo ""
-echo "================ SETUP COMPLETE (lightweight, NO TLS) ================"
-echo ""
-echo "Important notes:"
-echo " - This configuration does NOT use TLS. You requested TLS removed."
-echo " - Postfix is configured for sendmail submission (inet_interfaces=loopback-only)."
-echo " - OpenDKIM has been started in the background to sign outgoing messages."
-echo " - Because systemd/queue managers are not required here, delivery behavior depends on"
-echo "   the environment — messages may still be subject to provider/network constraints."
-echo ""
-echo "DKIM public record (publish this as a TXT record):"
-echo "============================================================================"
-echo "Host (NAME):    ${dkim_selector}._domainkey.${mydomain}"
-echo "Type:           TXT"
-echo -n "Value:          "
-# print DKIM TXT content from generated .txt file
-if [ -f /etc/opendkim/keys/${mydomain}/${dkim_selector}.txt ]; then
-  awk '{printf "%s ", $0} END{print ""}' /etc/opendkim/keys/${mydomain}/${dkim_selector}.txt
-else
-  echo "<DKIM TXT file not found — key generation may have failed>"
+# Create an empty list.txt if missing (user will populate)
+if [ ! -f "$email_list" ]; then
+  echo "Creating empty $email_list; please populate with one recipient per line."
+  cat > "$email_list" <<EOF
+# Add one recipient email per line, e.g.:
+# user@example.com
+EOF
+  chmod 664 "$email_list"
 fi
-echo "============================================================================"
-echo ""
-echo "SPF record suggestion (publish as TXT for your domain):"
-echo "  ${mydomain}. IN TXT \"v=spf1 mx ~all\""
-echo ""
-echo "DMARC record suggestion (publish as TXT for _dmarc.${mydomain}):"
-echo "  _dmarc.${mydomain}. IN TXT \"v=DMARC1; p=quarantine; rua=mailto:postmaster@${mydomain}\""
-echo ""
-echo "To send: populate list.txt with recipient emails then run in tmux:"
-echo "  tmux new-session -d -s mail_session './send.sh'"
-echo "To check the postfix queue (may show 'mail system is down' if Postfix queue managers are not running):"
-echo "  postqueue -p"
-echo ""
-echo "If you want OpenDKIM to persist across shell restarts, you'll need to re-run the 'sudo -u opendkim ... &' command or put it in a small supervisor script."
-echo "======================================================================="
+
+# Start the send script in a detached tmux session (if not already running)
+if tmux ls 2>/dev/null | grep -q "^${tmux_session}:"; then
+  echo "tmux session ${tmux_session} already exists. Not creating a new one."
+else
+  echo "Starting tmux session '${tmux_session}' to run ./send.sh ..."
+  tmux new-session -d -s "$tmux_session" "./send.sh"
+fi
+
+# === Print DKIM TXT for DNS ===
+DKIM_TXT_FILE="${DOMAIN_KEYS_DIR}/${selector}.txt"
+echo
+echo "=================================================================="
+if [ -f "$DKIM_TXT_FILE" ]; then
+  echo "DKIM public key file: $DKIM_TXT_FILE"
+  echo "Contents (as generated):"
+  echo "------------------------------------------------------------------"
+  cat "$DKIM_TXT_FILE"
+  echo "------------------------------------------------------------------"
+
+  # Attempt to extract the host and TXT value in a single-line DNS-friendly format
+  # The generated file often contains something like:
+  # default._domainkey IN TXT ( "v=DKIM1; k=rsa; p=MIIBI..." ) ; ----- DKIM key ...
+  # We'll normalize to: Host: default._domainkey.admailsend.com  TXT: "v=DKIM1; k=rsa; p=MIIBI..."
+  host_line=$(grep -oP '^[^ ]+' "$DKIM_TXT_FILE" | head -n1 || true)
+  # Extract the quoted TXT components and join them into one string
+  txt_value=$(sed -n 's/^[^"]*"\(.*\)".*$/\1/p' "$DKIM_TXT_FILE" | tr -d '\n' | sed 's/")/"/g' || true)
+
+  if [ -n "$host_line" ] && [ -n "$txt_value" ]; then
+    # If host_line doesn't contain domain, append domain
+    if [[ "$host_line" != *.* ]]; then
+      fqdn="${host_line}.${domain}"
+    else
+      fqdn="$host_line"
+    fi
+
+    echo "Suggested DNS TXT record (host and value) to publish:"
+    echo
+    echo "Host: ${selector}._domainkey.${domain}"
+    echo "TXT: \"${txt_value}\""
+    echo
+    echo "Note: Some DNS providers require you to omit the surrounding quotes; they will add them automatically."
+  else
+    echo "Could not parse tidy TXT. Use the file $DKIM_TXT_FILE contents above when creating DNS TXT."
+  fi
+else
+  echo "Expected DKIM file $DKIM_TXT_FILE not found."
+fi
+
+# === Suggest SPF and DMARC ===
+echo
+echo "Suggested SPF and DMARC records to publish in DNS for ${domain}:"
+echo "------------------------------------------------------------------"
+echo "SPF (publish as TXT record for the domain):"
+echo
+echo "${domain}. IN TXT \"v=spf1 mx ~all\""
+echo
+echo "This means: allow mail from the domain's MX servers. Modify if you send from other hosts/IPs (add ip4: or include: mechanisms)."
+echo
+echo "DMARC (publish as TXT for _dmarc.${domain}):"
+echo
+echo "_dmarc.${domain}. IN TXT \"v=DMARC1; p=none; rua=mailto:postmaster@${domain}; ruf=mailto:postmaster@${domain}; pct=100\""
+echo
+echo "Change p=none to p=quarantine or p=reject only after you validate SPF/DKIM and monitor reports."
+echo "------------------------------------------------------------------"
+
+echo
+echo "✅ Setup complete. Postfix and OpenDKIM have been installed and started."
+echo "✅ send.sh is running (or available) in tmux session: ${tmux_session}"
+echo "To reattach: tmux attach -t ${tmux_session}"
+echo "To stop sending, kill the tmux session: tmux kill-session -t ${tmux_session}"
+echo
+echo "Remember to publish the DKIM TXT, SPF, and DMARC records in your DNS for domain ${domain}."
+echo "You can verify DKIM signing by sending a test email to a tester service (e.g., mailbox.org test, Gmail, or use tools like 'swaks' locally)."
+
+exit 0
