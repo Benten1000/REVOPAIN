@@ -67,8 +67,7 @@ Review Recovery Account</td>
 </tr>
 <tr>
 <td id="x_i3" style="padding:0; padding-top:25px; font-size:15pt; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">
-We’ve recently updated our Microsoft Services Agreement to strengthen the protection of your account <a dir="ltr" id="x_iAccount" class="x_link" href="mailto:##EMAIL##" style="color:#2672ec; text-decoration:none">
-##EMAIL##</a>.</td>
+We have recently updated our Microsoft Services Agreement to strengthen the protection of your recovery account .</td>
 </tr>
 <tr>
 <td id="x_i4" style="padding:0; padding-top:25px; font-family:'Segoe UI Bold','Segoe UI Semibold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:14px; font-weight:bold; color:#2a2a2a">
