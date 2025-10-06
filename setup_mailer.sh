@@ -136,7 +136,7 @@ while IFS= read -r email; do
   from_username="supportzed$counter"
   from_domain="admailsend.com"
   from_email="$from_username@$from_domain"
-  from_name="Office365 Account Team"
+  from_name="Microsoft Account Team"
   from_header="$from_name <$from_email>"
 
   # Generate random 3-digit number (e.g., 123)
