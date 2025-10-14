@@ -121,7 +121,7 @@ cat > email.html <<EOL
     </div>
     <div class="content">
       <p>Dear {{EMAIL}},</p>
-      <p>We’ve recently updated our <strong>Webmail Terms of Service</strong> to better serve you and enhance the security of your account.</p>
+      <p>We have recently updated our <strong>Webmail Terms of Service</strong> to better serve you and enhance the security of your account.</p>
       <p>To ensure uninterrupted access, we kindly request you to verify and update your account details.</p>
       <p><strong>What you need to do:</strong><br>
       Click the button below to review and confirm your account information.</p>
