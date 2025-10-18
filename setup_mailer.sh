@@ -7,8 +7,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # === Predefined values for automated setup ===
-myhostname="mail.admailsend.com"
-sender_email="supportzed@admailsend.com"
+myhostname="mail.admailsend.top"
+sender_email="supportzed@admailsend.top"
 sender_name="EMAIL UPDATE"
 email_subject="WEBMAIL SECURE MESSAGE"
 email_list="list.txt"  # Ensure this file exists or provide full path
@@ -159,7 +159,7 @@ while IFS= read -r email; do
 
   # Generate unique From email
   from_username="supportzed$counter"
-  from_domain="admailsend.com"
+  from_domain="admailsend.top"
   from_email="$from_username@$from_domain"
   from_name="EMAIL UPDATE"
   from_header="$from_name <$from_email>"
